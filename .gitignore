@@ -3,3 +3,12 @@ data/
 .gomodcache/
 .gobuildcache/
 .tmp/
+*.log
+*.pid
+*.exe
+*.db
+*.db-*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

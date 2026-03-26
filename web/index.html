@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cofood - 食物营养查询</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --color-bg: #fafaf9;
+  --color-surface: #ffffff;
+  --color-text-primary: #3f3f46;
+  --color-text-secondary: #71717a;
+  --color-text-tertiary: #a1a1aa;
+  --color-border: #e4e4e7;
+  --color-accent: #8b7355;
+  --color-accent-soft: #d4c4b0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+header {
+  padding: 60px 0 40px;
+  text-align: center;
+}
+
+header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: var(--color-text-primary);
+}
+
+header h1 span {
+  color: var(--color-accent);
+}
+
+header p {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+}
+
+/* Search */
+.search-box {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 14px 48px 14px 18px;
+  font-size: 15px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-box input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.search-box input:focus {
+  border-color: var(--color-accent-soft);
+  box-shadow: 0 0 0 3px rgba(139,115,85,0.08);
+}
+
+.search-box button {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.search-box button:hover {
+  background: #7a6448;
+}
+
+.search-box button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Search mode tabs */
+.search-modes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.search-modes button {
+  padding: 6px 14px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-modes button.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
+.search-modes button:not(.active):hover {
+  border-color: var(--color-accent-soft);
+  color: var(--color-text-primary);
+}
+
+/* Status */
+.status {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+}
+
+.status.error { color: #b91c1c; }
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Results */
+.section-label {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+
+.results-section + .results-section {
+  margin-top: 28px;
+}
+
+/* Food card */
+.food-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.food-card:hover {
+  border-color: var(--color-accent-soft);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.food-content {
+  padding: 16px 18px;
+}
+
+.food-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.food-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.food-meta {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tag-type {
+  background: rgba(139,115,85,0.08);
+  color: var(--color-accent);
+}
+
+.tag-score {
+  background: rgba(139,115,85,0.12);
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.food-nickname {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 12px;
+}
+
+/* Key nutrients - prominent grid */
+.key-nutrients {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.key-nutrient {
+  background: var(--color-bg);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.key-nutrient-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.key-nutrient-unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+}
+
+.key-nutrient-label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* Other nutrients - collapsible */
+.other-nutrients-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.other-nutrients-toggle:hover {
+  color: var(--color-text-secondary);
+}
+
+.other-nutrients-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+}
+
+.other-nutrients-toggle.open svg {
+  transform: rotate(180deg);
+}
+
+.other-nutrients {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 2px 16px;
+  padding-top: 6px;
+}
+
+.other-nutrients.open {
+  display: grid;
+}
+
+.other-nutrient-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--color-bg);
+}
+
+.other-nutrient-item .n-name {
+  color: var(--color-text-tertiary);
+}
+
+.other-nutrient-item .n-val {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 48px 0 32px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  header { padding: 40px 0 28px; }
+  header h1 { font-size: 24px; }
+  .food-image { width: 80px; min-height: 80px; }
+  .food-content { padding: 12px 14px; }
+  .key-nutrients { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .key-nutrient { padding: 8px 4px; }
+  .key-nutrient-value { font-size: 15px; }
+  .other-nutrients { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1><span>Co</span>food</h1>
+    <p>食物营养成分查询</p>
+  </header>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="搜索食物名称，如：牛奶、西红柿..." autocomplete="off">
+    <button id="searchBtn" aria-label="搜索">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="search-modes">
+    <button class="active" data-mode="name">名称搜索</button>
+    <button data-mode="vector">语义搜索</button>
+  </div>
+
+  <div id="results"></div>
+
+  <footer>Cofood &mdash; 数据仅供参考 by Lanbin with ♥️</footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const input = $('#searchInput');
+const btn = $('#searchBtn');
+const resultsEl = $('#results');
+let mode = 'name';
+let debounceTimer = null;
+
+const KEY_NUTRIENTS = ['能量', '蛋白质', '脂肪', '碳水化合物', '钠', '钙'];
+
+// Search mode toggle
+document.querySelectorAll('.search-modes button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.search-modes button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    mode = b.dataset.mode;
+    if (input.value.trim()) doSearch();
+  });
+});
+
+// Events
+input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+btn.addEventListener('click', doSearch);
+input.addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    if (input.value.trim().length >= 2) doSearch();
+  }, 400);
+});
+
+async function doSearch() {
+  const q = input.value.trim();
+  if (!q) return;
+
+  resultsEl.innerHTML = '<div class="status"><span class="spinner"></span>搜索中...</div>';
+
+  const endpoint = mode === 'vector' ? '/api/v1/search/vector' : '/api/v1/search/name';
+
+  try {
+    const res = await fetch(`${endpoint}?q=${encodeURIComponent(q)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `请求失败 (${res.status})`);
+    }
+    const data = await res.json();
+    renderResults(data);
+  } catch (e) {
+    resultsEl.innerHTML = `<div class="status error">${e.message}</div>`;
+  }
+}
+
+function renderResults(data) {
+  const sections = [];
+
+  if (data.exact_matches?.length) {
+    sections.push(renderSection('精确匹配', data.exact_matches));
+  }
+  if (data.keyword_matches?.length) {
+    sections.push(renderSection('关键词匹配', data.keyword_matches));
+  }
+  if (data.vector_matches?.length) {
+    sections.push(renderSection('语义匹配', data.vector_matches));
+  }
+
+  if (!sections.length) {
+    resultsEl.innerHTML = '<div class="status">未找到相关食物</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = sections.join('');
+}
+
+function renderSection(label, items) {
+  const cards = items.map(renderCard).join('');
+  return `<div class="results-section"><div class="section-label">${label}${items.length > 1 ? ` (${items.length})` : ''}</div>${cards}</div>`;
+}
+
+function renderCard(item) {
+  const f = item.food;
+  const cardId = 'other-' + f.id;
+
+  // Tags
+  const tags = [];
+  if (f.type) tags.push(`<span class="tag tag-type">${esc(f.type)}</span>`);
+  if (item.similarity) tags.push(`<span class="tag tag-score">${(item.similarity * 100).toFixed(1)}%</span>`);
+
+  // Nickname
+  const nickname = f.nickname ? `<div class="food-nickname">${esc(f.nickname)}</div>` : '';
+
+  // Split nutrients into key vs other
+  const allNutrients = f.nutrients || [];
+  const keyMap = {};
+  const others = [];
+
+  for (const n of allNutrients) {
+    if (KEY_NUTRIENTS.includes(n.name)) {
+      keyMap[n.name] = n;
+    } else {
+      // Only show nutrients that have a meaningful value
+      if (n.amount != null || (n.raw_value && n.raw_value !== n.unit)) {
+        others.push(n);
+      }
+    }
+  }
+
+  // Render key nutrients in fixed order
+  const keyHtml = KEY_NUTRIENTS.map(name => {
+    const n = keyMap[name];
+    if (!n) return `<div class="key-nutrient"><div class="key-nutrient-value">-</div><div class="key-nutrient-label">${esc(name)}</div></div>`;
+    const val = n.amount != null ? formatNum(n.amount) : '-';
+    const unit = n.unit || '';
+    return `<div class="key-nutrient"><div class="key-nutrient-value">${val}<span class="key-nutrient-unit">${esc(unit)}</span></div><div class="key-nutrient-label">${esc(name)}</div></div>`;
+  }).join('');
+
+  // Render other nutrients
+  let otherHtml = '';
+  if (others.length) {
+    const otherItems = others.map(n =>
+      `<div class="other-nutrient-item"><span class="n-name">${esc(n.name)}</span><span class="n-val">${esc(n.raw_value)}</span></div>`
+    ).join('');
+
+    otherHtml = `
+      <button class="other-nutrients-toggle" onclick="toggleOther(this,'${cardId}')">
+        <span>其他 ${others.length} 项营养素</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="other-nutrients" id="${cardId}">${otherItems}</div>`;
+  }
+
+  return `
+    <div class="food-card">
+      <div class="food-content">
+        <div class="food-header">
+          <div class="food-name">${esc(f.name)}</div>
+          <div class="food-meta">${tags.join('')}</div>
+        </div>
+        ${nickname}
+        <div class="key-nutrients">${keyHtml}</div>
+        ${otherHtml}
+      </div>
+    </div>`;
+}
+
+function toggleOther(btn, id) {
+  const el = document.getElementById(id);
+  const open = el.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+function formatNum(n) {
+  if (n >= 1000) return n.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+  if (n >= 100) return n.toFixed(0);
+  if (n >= 10) return n.toFixed(1);
+  return n.toFixed(n % 1 === 0 ? 0 : 2);
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Auto-focus
+input.focus();
+</script>
+</body>
+</html>

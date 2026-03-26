@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"cofood/internal/config"
 	"cofood/internal/database"
@@ -34,20 +36,32 @@ func NewService(store *database.Store, embedClient *embedding.Client, cfg config
 }
 
 func (s *Service) Bootstrap(ctx context.Context) error {
-	count, err := s.store.FoodCount(ctx)
+	foodCount, err := s.store.FoodCount(ctx)
 	if err != nil {
 		return err
 	}
 
-	if count == 0 {
+	if foodCount == 0 {
+		log.Printf("foods table is empty, importing from %s", s.cfg.DataFilePath)
 		if err := s.ImportJSONL(ctx, s.cfg.DataFilePath); err != nil {
 			return err
 		}
+		foodCount, err = s.store.FoodCount(ctx)
+		if err != nil {
+			return err
+		}
+		log.Printf("food import completed, total=%d", foodCount)
 	}
 
 	if !s.cfg.AutoEmbedOnStartup || !s.embedClient.Enabled() {
 		return nil
 	}
+
+	embeddingCount, err := s.store.EmbeddingCount(ctx)
+	if err != nil {
+		return err
+	}
+	log.Printf("embedding backfill starting: existing=%d total=%d model=%s", embeddingCount, foodCount, s.cfg.EmbeddingModel)
 
 	return s.BackfillEmbeddings(ctx)
 }
@@ -97,15 +111,26 @@ func (s *Service) BackfillEmbeddings(ctx context.Context) error {
 		return nil
 	}
 
+	totalFoods, err := s.store.FoodCount(ctx)
+	if err != nil {
+		return err
+	}
+	completed, err := s.store.EmbeddingCount(ctx)
+	if err != nil {
+		return err
+	}
+
 	for {
 		foods, err := s.store.ListFoodsWithoutEmbeddings(ctx, s.cfg.EmbeddingBatchSize)
 		if err != nil {
 			return err
 		}
 		if len(foods) == 0 {
+			log.Printf("embedding backfill completed: total=%d", completed)
 			return nil
 		}
 
+		startedAt := time.Now()
 		inputs := make([]string, 0, len(foods))
 		for _, food := range foods {
 			inputs = append(inputs, food.SearchText)
@@ -128,6 +153,15 @@ func (s *Service) BackfillEmbeddings(ctx context.Context) error {
 				return err
 			}
 		}
+
+		completed += len(foods)
+		log.Printf(
+			"embedding backfill progress: %d/%d (batch=%d elapsed=%s)",
+			completed,
+			totalFoods,
+			len(foods),
+			time.Since(startedAt).Round(time.Millisecond),
+		)
 	}
 }
 

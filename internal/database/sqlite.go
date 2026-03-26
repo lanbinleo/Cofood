@@ -110,6 +110,14 @@ func (s *Store) FoodCount(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+func (s *Store) EmbeddingCount(ctx context.Context) (int, error) {
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM food_embeddings`).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (s *Store) UpsertFood(ctx context.Context, food model.Food) (int64, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

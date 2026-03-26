@@ -29,6 +29,10 @@ func NewRouter(cfg config.Config, searchSvc *search.Service) *gin.Engine {
 
 	engine.GET("/healthz", router.healthz)
 
+	// Serve frontend
+	engine.StaticFile("/", "./web/index.html")
+	engine.StaticFile("/index.html", "./web/index.html")
+
 	v1 := engine.Group("/api/v1")
 	v1.GET("/search/name", router.searchByName)
 	v1.GET("/search/vector", router.searchByVector)
