@@ -1,5 +1,6 @@
 .env
-data/
+data/*
+!data/cofood.db
 .gomodcache/
 .gobuildcache/
 .tmp/
@@ -8,6 +9,7 @@ data/
 *.exe
 *.db
 *.db-*
+!data/cofood.db
 .DS_Store
 Thumbs.db
 .idea/
